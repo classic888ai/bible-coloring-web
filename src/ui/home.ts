@@ -6,6 +6,7 @@ import { pagesByCategory, findPage } from "../pages/index.js";
 import { el, clear } from "./dom.js";
 import { Icons } from "./icons.js";
 import { readMetaList } from "../engine/persistence.js";
+import { listCustomPages, saveCustomPage } from "../engine/custom_pages.js";
 
 export type Mode = "free" | "cbn";
 
@@ -81,6 +82,25 @@ export function renderHome(root: HTMLElement, props: HomeProps): void {
       continueStrip,
     ]));
   }
+
+  // YOUR PAGES row — custom uploads + "Add a Page" tile. Always show the
+  // add tile so the feature is discoverable, even with no custom pages yet.
+  const yourStrip = el("div", { class: "category-strip" });
+  yourStrip.appendChild(makeAddPageTile((page) => props.onOpenPage(page, "free")));
+  for (const customPage of listCustomPages()) {
+    const thumbSlot = el("div", { class: "story-thumb" });
+    thumbSlot.appendChild(makeCustomThumbnail(customPage));
+    const tile = el("button", { class: "story-tile" }, [
+      thumbSlot,
+      el("div", { class: "story-title" }, customPage.title),
+    ]);
+    tile.addEventListener("click", () => props.onOpenPage(customPage, "free"));
+    yourStrip.appendChild(tile);
+  }
+  categoriesEl.appendChild(el("div", { class: "category" }, [
+    el("div", { class: "category-title" }, "Your Pages"),
+    yourStrip,
+  ]));
 
   for (const [cat, pages] of pagesByCategory()) {
     const strip = el("div", { class: "category-strip" });
@@ -248,6 +268,53 @@ function makeProgressRing(progress: number): SVGElement {
   text.textContent = `${Math.round(progress * 100)}%`;
   svg.appendChild(text);
   return svg;
+}
+
+// Tile that opens a file picker to import an image as a custom page.
+// Visually distinct (dashed border + plus icon) so it reads as "add new."
+function makeAddPageTile(onAdded: (page: ColoringPage) => void): HTMLElement {
+  const tile = el("button", { class: "story-tile" });
+  const thumb = el("div", {
+    class: "story-thumb",
+    style: "border-style:dashed;background:rgba(232,181,71,0.10);" +
+           "display:flex;align-items:center;justify-content:center;" +
+           "font-size:60px;color:var(--gold-deep);font-weight:300;",
+  }, "+");
+  tile.appendChild(thumb);
+  tile.appendChild(el("div", { class: "story-title" }, "Add a Page"));
+
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/png,image/jpeg,image/webp,image/svg+xml";
+  input.style.display = "none";
+  tile.appendChild(input);
+
+  tile.addEventListener("click", () => input.click());
+  input.addEventListener("change", () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataURL = reader.result;
+      if (typeof dataURL !== "string") return;
+      const title = file.name.replace(/\.[^.]+$/, "").slice(0, 30) || "My Page";
+      const page = saveCustomPage(title, dataURL);
+      if (page) onAdded(page);
+      else alert("Couldn't save that page. Try a smaller image.");
+    };
+    reader.readAsDataURL(file);
+  });
+  return tile;
+}
+
+function makeCustomThumbnail(page: ColoringPage): HTMLImageElement {
+  const img = new Image();
+  img.src = page.lineartImageURL ?? "";
+  img.style.width = "100%";
+  img.style.height = "100%";
+  img.style.objectFit = "contain";
+  img.style.background = "white";
+  return img;
 }
 
 function makeThumbnail(page: ColoringPage): HTMLCanvasElement {

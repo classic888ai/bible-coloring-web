@@ -44,6 +44,9 @@ export function rasterizeLineart(page: ColoringPage): HTMLCanvasElement {
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
 
+  // For authored pages: stroke each LineStroke.
+  // For imported pages: the bitmap is loaded asynchronously and drawn into
+  // the texture upload after rasterization. See loadPage path in renderer.
   for (const stroke of page.lineart) {
     ctx.strokeStyle = stroke.color;
     ctx.lineWidth = stroke.width;
@@ -54,6 +57,46 @@ export function rasterizeLineart(page: ColoringPage): HTMLCanvasElement {
     ctx.stroke(stroke.path);
   }
 
+  return c;
+}
+
+/**
+ * For an imported (bitmap) page, draw the source image into a canvas at
+ * page.size. The image typically has white background and black lines —
+ * we treat white as transparent so the canvas paper shows through.
+ */
+export function rasterizeBitmapLineart(
+  page: ColoringPage,
+  img: HTMLImageElement,
+): HTMLCanvasElement {
+  const c = document.createElement("canvas");
+  c.width = page.size;
+  c.height = page.size;
+  const ctx = c.getContext("2d");
+  if (!ctx) throw new Error("Failed to get 2D context");
+  ctx.clearRect(0, 0, page.size, page.size);
+  // Fit-cover into the square page space, preserving aspect ratio.
+  const scale = Math.max(page.size / img.naturalWidth, page.size / img.naturalHeight);
+  const w = img.naturalWidth * scale;
+  const h = img.naturalHeight * scale;
+  ctx.drawImage(img, (page.size - w) / 2, (page.size - h) / 2, w, h);
+
+  // Knock out near-white pixels so the paper background shows through.
+  // Anything in the [220, 255] luminance range becomes fully transparent.
+  const data = ctx.getImageData(0, 0, page.size, page.size);
+  for (let i = 0; i < data.data.length; i += 4) {
+    const r = data.data[i] ?? 0;
+    const g = data.data[i + 1] ?? 0;
+    const b = data.data[i + 2] ?? 0;
+    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    if (lum > 220) {
+      data.data[i + 3] = 0;
+    } else if (lum > 160) {
+      // Partial transparency in the gray edge zone for anti-aliasing.
+      data.data[i + 3] = Math.round(((220 - lum) / 60) * 255);
+    }
+  }
+  ctx.putImageData(data, 0, 0);
   return c;
 }
 

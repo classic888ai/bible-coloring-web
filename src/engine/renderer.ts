@@ -27,7 +27,7 @@ import {
 } from "./gl.js";
 import { type ColoringPage, hexToRgba } from "./page.js";
 import { type Brush, hsvToRgb } from "./brush.js";
-import { rasterizeLineart, rasterizeRegionIDs } from "./rasterize.js";
+import { rasterizeBitmapLineart, rasterizeLineart, rasterizeRegionIDs } from "./rasterize.js";
 
 export class Renderer {
   readonly gl: WebGL2RenderingContext;
@@ -184,7 +184,9 @@ export class Renderer {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
-    // Lineart texture.
+    // Lineart texture. For authored pages, rasterize the LineStrokes.
+    // For imported (custom) pages, the line art is a bitmap — load it
+    // asynchronously and re-upload when ready.
     const lineartCanvas = rasterizeLineart(page);
     this.lineartTex = gl.createTexture()!;
     gl.bindTexture(gl.TEXTURE_2D, this.lineartTex);
@@ -193,6 +195,17 @@ export class Renderer {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    if (page.lineartImageURL) {
+      const img = new Image();
+      img.onload = () => {
+        const bitmapCanvas = rasterizeBitmapLineart(page, img);
+        gl.bindTexture(gl.TEXTURE_2D, this.lineartTex);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, bitmapCanvas);
+        this.onRedraw?.();
+      };
+      img.src = page.lineartImageURL;
+    }
   }
 
   clearPaint(): void {

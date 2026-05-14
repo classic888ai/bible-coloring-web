@@ -28,6 +28,12 @@ export interface ColoringPage {
   // entry's index+1 is the displayed number. Derived from regions, but
   // explicit so authors can reorder.
   palette: string[];
+  /** Imported pages: when present, this image is used as the lineart layer
+   *  instead of rasterizing the `lineart` paths. The bitmap is treated as
+   *  pre-rendered black-line-on-white-paper art. */
+  lineartImageURL?: string;
+  /** True if this page came from a user upload (not bundled content). */
+  isCustom?: boolean;
 }
 
 // Build a palette from a regions list, deduping colors and preserving
