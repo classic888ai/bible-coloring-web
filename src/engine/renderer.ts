@@ -55,6 +55,8 @@ export class Renderer {
   private paperGrainTex: WebGLTexture | null = null;
   private shapeTextures = new Map<string, WebGLTexture>();
   private shapeLoadPromises = new Map<string, Promise<WebGLTexture>>();
+  private grainTextures = new Map<string, WebGLTexture>();
+  private grainLoadPromises = new Map<string, Promise<WebGLTexture>>();
 
   // Stroke state
   private dragLastX = 0;
@@ -137,6 +139,21 @@ export class Renderer {
       this.shapeLoadPromises.set(filename, this.loadImageTexture(`/textures/${filename}`)
         .then((tex) => {
           this.shapeTextures.set(filename, tex);
+          this.onRedraw?.();
+          return tex;
+        }));
+    }
+    return null;
+  }
+
+  /** Get-or-load a brush grain texture (alternative to global paper.jpg). */
+  private getGrainTexture(filename: string): WebGLTexture | null {
+    const cached = this.grainTextures.get(filename);
+    if (cached) return cached;
+    if (!this.grainLoadPromises.has(filename)) {
+      this.grainLoadPromises.set(filename, this.loadImageTexture(`/textures/${filename}`)
+        .then((tex) => {
+          this.grainTextures.set(filename, tex);
           this.onRedraw?.();
           return tex;
         }));
@@ -286,10 +303,16 @@ export class Renderer {
     gl.bindTexture(gl.TEXTURE_2D, this.regionTex);
     gl.uniform1i(this.stampU("u_regionTex"), 0);
 
-    // Texture unit 1 — paper grain.
+    // Texture unit 1 — paper/grain. Use the brush's grain-override if it
+    // specifies one (e.g. crayon's real wax-on-paper photo); otherwise the
+    // shared paper.jpg.
     gl.activeTexture(gl.TEXTURE1);
-    if (this.paperGrainTex) {
-      gl.bindTexture(gl.TEXTURE_2D, this.paperGrainTex);
+    const grainOverride = brush.grainTexture
+      ? this.getGrainTexture(brush.grainTexture)
+      : null;
+    const grainTex = grainOverride ?? this.paperGrainTex;
+    if (grainTex) {
+      gl.bindTexture(gl.TEXTURE_2D, grainTex);
       gl.uniform1f(this.stampU("u_hasPaperGrain"), 1);
     } else {
       gl.bindTexture(gl.TEXTURE_2D, this.regionTex);  // dummy

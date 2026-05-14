@@ -25,30 +25,33 @@ export interface Brush {
   /** How densely to tile the paper-grain texture across the page. Higher
    *  = finer/sharper grain. Crayon = ~6-10, pencil = ~14-20. */
   paperTile: number;
+  /** Optional brush-specific grain texture filename. When set, overrides
+   *  the global paper.jpg for this brush. Used to give crayon a real
+   *  wax-on-paper photographic grain — the photoshop-brush clone approach. */
+  grainTexture?: string | null;
 }
 
 export const BRUSHES: Record<string, Brush> = {
-  // Crayon — the headline brush. Wider spacing so individual wax-skip
-  // moments survive into the visible stroke. Paper grain tiled at ~7
-  // (so the paper-bump pattern repeats across a 2048 page about 7 times,
-  // putting each bump at ~10px — a believable paper-fiber scale).
+  // Crayon — the headline brush. Now uses a REAL crayon-on-paper photo as
+  // the grain texture (sampled in PAGE UV) so every stamp reveals authentic
+  // wax-skip patterns rather than procedural noise. This is the photoshop
+  // brush clone approach — photographed real-media → tileable PNG.
   crayon: {
     name: "Crayon",
     icon: "🖍️",
     radius: 28,
     spacing: 0.32,
-    baseAlpha: 0.45,
-    hardness: 0.50,
+    baseAlpha: 0.55,          // slightly higher base now that grain is real
+    hardness: 0.55,
     angleJitter: Math.PI,
     grainStrength: 0.95,
     sizeJitter: 0.15,
     hueStep: 0,
     textureMode: 0,
-    shapeTexture: null,       // use procedural soft disc for now (Deevad
-                              // shapes don't quite read as crayon — keeping
-                              // procedural until user's own crayon photos
-                              // are extracted)
-    paperTile: 7.0,
+    shapeTexture: null,
+    paperTile: 4.0,           // moderate tile — the photo already has bumpy
+                              // wax texture at native scale
+    grainTexture: "crayon_grain.png",
   },
   // Pencil — colored pencil. Distinct from crayon in three ways:
   //   1. Tiny radius (6) — pencil makes a narrow mark, not a fat stroke

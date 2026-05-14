@@ -398,6 +398,9 @@ export function renderColoring(root: HTMLElement, props: ColoringProps): void {
   canvasWrap.appendChild(numberOverlay);
   const numberLabels = new Map<number, HTMLElement>();
 
+  // Region-specific font sizing — small regions get smaller numbers so
+  // they don't overflow. The label center is the pole-of-inaccessibility,
+  // so we use its distance-from-edge to scale.
   function buildRegionNumbers(): void {
     if (props.mode !== "cbn") return;
     numberOverlay.replaceChildren();
@@ -407,10 +410,15 @@ export function renderColoring(root: HTMLElement, props: ColoringProps): void {
       const center = regionLabelCenter(region, props.page.size);
       const label = el("div", {
         style: "position:absolute;transform:translate(-50%,-50%);" +
-               "font-family:Fredoka,sans-serif;font-weight:700;" +
-               "color:rgba(42,42,46,0.65);" +
-               "text-shadow:0 1px 2px rgba(255,255,255,0.8);" +
-               "pointer-events:none;user-select:none;",
+               "font-family:Fredoka,sans-serif;font-weight:800;" +
+               "color:#2A2A2E;" +
+               "background:rgba(255,251,238,0.92);" +
+               "border:3px solid #2A2A2E;" +
+               "border-radius:999px;" +
+               "display:flex;align-items:center;justify-content:center;" +
+               "box-shadow:0 2px 5px rgba(0,0,0,0.18);" +
+               "pointer-events:none;user-select:none;" +
+               "line-height:1;",
       }, String(region.number));
       label.dataset.region = String(region.id);
       label.dataset.cx = String(center.x);
@@ -427,13 +435,20 @@ export function renderColoring(root: HTMLElement, props: ColoringProps): void {
     const offsetX = canvasRect.left - wrapRect.left;
     const offsetY = canvasRect.top - wrapRect.top;
     const scale = canvasRect.width / props.page.size;
-    const fontPx = Math.max(12, Math.round(28 * scale));
+    // Significantly larger than before: 64px base at canvas scale, with a
+    // floor of 18px so even tiny regions stay readable. Numbers now sit in
+    // a circular cream chip with a charcoal border so they're crisp
+    // against any background color.
+    const fontPx = Math.max(18, Math.round(64 * scale));
+    const chipSize = Math.round(fontPx * 1.7);
     for (const [, label] of numberLabels) {
       const cx = Number(label.dataset.cx);
       const cy = Number(label.dataset.cy);
       label.style.left = `${offsetX + cx * scale}px`;
       label.style.top = `${offsetY + cy * scale}px`;
       label.style.fontSize = `${fontPx}px`;
+      label.style.width = `${chipSize}px`;
+      label.style.height = `${chipSize}px`;
     }
   }
 
