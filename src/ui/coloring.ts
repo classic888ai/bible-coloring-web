@@ -7,18 +7,89 @@
 
 import { Renderer } from "../engine/renderer.js";
 import { BRUSHES, type Brush, type BrushName } from "../engine/brush.js";
-import { type ColoringPage, hexToRgba } from "../engine/page.js";
+import { type ColoringPage, hexToRgba, regionLabelCenter } from "../engine/page.js";
 import { el } from "./dom.js";
 import { showCelebration, showConfettiBurst } from "./celebration.js";
 import type { Mode } from "./home.js";
 import { Icons } from "./icons.js";
 import { loadPaint, savePaint, deletePaint } from "../engine/persistence.js";
 
-const FREE_PALETTE = [
-  "#E74C3C", "#F39C12", "#F4D03F", "#7DCE82", "#3498DB", "#5B9CFF",
-  "#8E44AD", "#FF6B9D", "#FF8A47", "#A0522D", "#8B4513", "#2A2A2E",
-  "#FFFFFF", "#B6DCEF", "#6FBF73", "#F08A6E",
+interface PaletteTheme {
+  name: string;
+  emoji: string;
+  colors: string[];
+}
+
+const PALETTE_THEMES: PaletteTheme[] = [
+  {
+    name: "Classic",
+    emoji: "🎨",
+    colors: [
+      "#E74C3C", "#F39C12", "#F4D03F", "#7DCE82", "#3498DB", "#5B9CFF",
+      "#8E44AD", "#FF6B9D", "#FF8A47", "#A0522D", "#8B4513", "#2A2A2E",
+      "#FFFFFF", "#B6DCEF", "#6FBF73", "#F08A6E",
+    ],
+  },
+  {
+    name: "Pastels",
+    emoji: "🌸",
+    colors: [
+      "#FAD2E1", "#FFEAA7", "#C7CEEA", "#B5EAD7", "#FFDAC1", "#E2C2FF",
+      "#FFB7B2", "#A8E6CF", "#FCEFB4", "#D6F4E5", "#FFCDD2", "#D0BCFF",
+      "#FFE0AC", "#C8E6C9", "#F8BBD0", "#E1F5FE",
+    ],
+  },
+  {
+    name: "Neon",
+    emoji: "⚡",
+    colors: [
+      "#FF006E", "#FB5607", "#FFBE0B", "#8338EC", "#3A86FF", "#06FFA5",
+      "#FF4081", "#7C4DFF", "#00E5FF", "#76FF03", "#FFEA00", "#FF3D00",
+      "#E040FB", "#1DE9B6", "#FFFFFF", "#0D0D0D",
+    ],
+  },
+  {
+    name: "Earth",
+    emoji: "🍂",
+    colors: [
+      "#8B4513", "#A0522D", "#CD853F", "#DEB887", "#F4A460", "#D2691E",
+      "#6B4423", "#8B7355", "#BC8F8F", "#9C7C5C", "#5C4033", "#7B5E40",
+      "#9E7B5A", "#C9A86A", "#7A5230", "#3E2723",
+    ],
+  },
+  {
+    name: "Ocean",
+    emoji: "🌊",
+    colors: [
+      "#001F3F", "#0074D9", "#39CCCC", "#7FDBFF", "#B0E0E6", "#E0F7FA",
+      "#005F73", "#0A9396", "#94D2BD", "#0077B6", "#00B4D8", "#48CAE4",
+      "#90E0EF", "#ADE8F4", "#CAF0F8", "#03045E",
+    ],
+  },
 ];
+
+// Brush size selector — multiplies the current brush's base radius.
+const SIZE_OPTIONS: Array<{ label: string; mult: number }> = [
+  { label: "S", mult: 0.5 },
+  { label: "M", mult: 1.0 },
+  { label: "L", mult: 1.7 },
+];
+
+function sizeButtonStyle(selected: boolean): string {
+  return "width:36px;height:36px;border-radius:50%;font-family:Fredoka,sans-serif;" +
+    "font-weight:700;font-size:13px;" +
+    (selected
+      ? "background:var(--gold);color:white;box-shadow:0 2px 6px rgba(0,0,0,0.18);"
+      : "background:var(--cream-2);color:var(--ink-2);");
+}
+
+function themeButtonStyle(selected: boolean): string {
+  return "width:36px;height:36px;border-radius:50%;font-size:18px;" +
+    "display:inline-flex;align-items:center;justify-content:center;" +
+    (selected
+      ? "background:white;box-shadow:0 0 0 2px var(--gold), 0 2px 6px rgba(0,0,0,0.18);"
+      : "background:var(--cream-2);");
+}
 
 interface ColoringProps {
   page: ColoringPage;
@@ -28,7 +99,7 @@ interface ColoringProps {
 }
 
 export function renderColoring(root: HTMLElement, props: ColoringProps): void {
-  // Build top bar (back button, progress (CBN only), undo, save).
+  // Build top bar (back button, stay-in-lines (free only), progress (CBN only), clear, save).
   const backBtn = el("button", { class: "icon-button", "aria-label": "Back to stories" },
     Icons.back() as unknown as HTMLElement);
   const undoBtn = el("button", { class: "icon-button", "aria-label": "Undo", disabled: "true" },
@@ -37,6 +108,11 @@ export function renderColoring(root: HTMLElement, props: ColoringProps): void {
     Icons.trash() as unknown as HTMLElement);
   const saveBtn = el("button", { class: "icon-button primary", "aria-label": "Save your art" },
     Icons.save() as unknown as HTMLElement);
+  const stayInLinesBtn = el("button", {
+    class: "icon-button",
+    "aria-label": "Stay in the lines",
+    title: "Stay in the lines",
+  }, "✏️");
 
   const progressFill = el("div", { class: "progress-fill" });
   progressFill.style.width = "0%";
@@ -45,6 +121,7 @@ export function renderColoring(root: HTMLElement, props: ColoringProps): void {
   const topBar = el("div", { class: "top-bar" }, [
     backBtn,
     undoBtn,
+    ...(props.mode === "free" ? [stayInLinesBtn] : []),
     ...(props.mode === "cbn" ? [progressBar] : [el("div", { class: "top-bar-spacer" })]),
     clearBtn,
     saveBtn,
@@ -63,10 +140,14 @@ export function renderColoring(root: HTMLElement, props: ColoringProps): void {
 
   // Tool dock (free mode only).
   const toolboxEl = el("div", { class: "toolbox" });
+  // Size + palette controls (free mode only). Rendered above the toolbox.
+  const accessoriesEl = el("div", {
+    style: "display:flex;gap:10px;justify-content:space-between;align-items:center;padding:0 14px;margin-bottom:6px;",
+  });
 
   const bottomPanel = el("div", { class: "bottom-panel" }, [
     paletteEl,
-    ...(props.mode === "free" ? [toolboxEl] : []),
+    ...(props.mode === "free" ? [accessoriesEl, toolboxEl] : []),
   ]);
 
   const coloring = el("div", { class: "coloring" }, [topBar, canvasWrap, bottomPanel]);
@@ -101,10 +182,14 @@ export function renderColoring(root: HTMLElement, props: ColoringProps): void {
     renderer.importPaintPNG(savedPaint).then(() => renderer.draw()).catch(() => {});
   }
 
+  let currentPalette = PALETTE_THEMES[0]!;
   let currentColor = props.mode === "cbn"
-    ? (props.page.palette[0] ?? FREE_PALETTE[0]!)
-    : FREE_PALETTE[0]!;
+    ? (props.page.palette[0] ?? currentPalette.colors[0]!)
+    : currentPalette.colors[0]!;
   let currentBrush: Brush = BRUSHES.crayon!;
+  let currentSizeMult = 1.0;
+  let stayInLines = false;
+  let activeClipRegion = 0;   // captured at pointerdown when stayInLines is on
   let drawing = false;
   let lastTapX = 0;
   let lastTapY = 0;
@@ -142,7 +227,7 @@ export function renderColoring(root: HTMLElement, props: ColoringProps): void {
 
   function rebuildPalette(): void {
     paletteEl.replaceChildren();
-    const colors = props.mode === "cbn" ? props.page.palette : FREE_PALETTE;
+    const colors = props.mode === "cbn" ? props.page.palette : currentPalette.colors;
     colors.forEach((hex, i) => {
       const swatch = el("button", {
         class: "swatch",
@@ -168,10 +253,60 @@ export function renderColoring(root: HTMLElement, props: ColoringProps): void {
   }
   rebuildPalette();
 
+  function rebuildAccessories(): void {
+    if (props.mode !== "free") return;
+    accessoriesEl.replaceChildren();
+
+    // Size selector (S/M/L).
+    const sizeRow = el("div", { style: "display:flex;gap:6px;align-items:center;" }, [
+      el("div", {
+        style: "font-size:11px;font-weight:700;color:var(--ink-2);margin-right:4px;",
+      }, "Size"),
+    ]);
+    for (const opt of SIZE_OPTIONS) {
+      const btn = el("button", {
+        style: sizeButtonStyle(opt.mult === currentSizeMult),
+      }, opt.label);
+      btn.addEventListener("click", () => {
+        currentSizeMult = opt.mult;
+        rebuildAccessories();
+      });
+      sizeRow.appendChild(btn);
+    }
+
+    // Palette theme selector.
+    const themeRow = el("div", { style: "display:flex;gap:6px;align-items:center;" }, [
+      el("div", {
+        style: "font-size:11px;font-weight:700;color:var(--ink-2);margin-right:4px;",
+      }, "Palette"),
+    ]);
+    for (const theme of PALETTE_THEMES) {
+      const isSel = theme === currentPalette;
+      const btn = el("button", {
+        title: theme.name,
+        "aria-label": `${theme.name} palette`,
+        style: themeButtonStyle(isSel),
+      }, theme.emoji);
+      btn.addEventListener("click", () => {
+        currentPalette = theme;
+        currentColor = theme.colors[0]!;
+        rebuildAccessories();
+        rebuildPalette();
+      });
+      themeRow.appendChild(btn);
+    }
+
+    accessoriesEl.appendChild(sizeRow);
+    accessoriesEl.appendChild(themeRow);
+  }
+
   function rebuildToolbox(): void {
     if (props.mode !== "free") return;
     toolboxEl.replaceChildren();
-    const brushList: BrushName[] = ["crayon", "pencil", "chalk", "marker", "paint", "rainbow"];
+    const brushList: BrushName[] = [
+      "crayon", "pencil", "chalk", "marker", "paint", "rainbow",
+      "glitter", "spray", "watercolor", "stars",
+    ];
     for (const name of brushList) {
       const brush = BRUSHES[name]!;
       const iconFn = `brush_${name}` as keyof typeof Icons;
@@ -194,28 +329,31 @@ export function renderColoring(root: HTMLElement, props: ColoringProps): void {
       toolboxEl.appendChild(t);
     }
   }
+  rebuildAccessories();
   rebuildToolbox();
+
+  // Stay-in-the-lines toggle behavior (free mode).
+  function updateStayInLinesVisual(): void {
+    if (stayInLines) {
+      stayInLinesBtn.style.background = "var(--gold)";
+      stayInLinesBtn.style.color = "white";
+      stayInLinesBtn.style.borderColor = "var(--gold-deep)";
+    } else {
+      stayInLinesBtn.style.background = "";
+      stayInLinesBtn.style.color = "";
+      stayInLinesBtn.style.borderColor = "";
+    }
+  }
+  stayInLinesBtn.addEventListener("click", () => {
+    stayInLines = !stayInLines;
+    updateStayInLinesVisual();
+  });
 
   function pageUVFromEvent(e: PointerEvent): { x: number; y: number } {
     const rect = canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
     return { x: clamp01(x), y: clamp01(y) };
-  }
-
-  function autoAdvancePalette(): void {
-    // Tap Color Pro pattern: after finishing a CBN color, select the next
-    // unfinished color in the palette.
-    for (const hex of props.page.palette) {
-      if (!paletteCompleted(hex)) {
-        currentColor = hex;
-        rebuildPalette();
-        // Auto-scroll the palette so the new selection is visible.
-        const target = paletteEl.querySelector(".swatch.selected") as HTMLElement | null;
-        target?.scrollIntoView({ behavior: "smooth", inline: "center" });
-        return;
-      }
-    }
   }
 
   function handleCBNTap(e: PointerEvent): void {
@@ -226,36 +364,22 @@ export function renderColoring(root: HTMLElement, props: ColoringProps): void {
     if (!region) return;
     if (filled.has(regionID)) return;  // already filled
 
-    // Compare selected color to region's expected color (case-insensitive).
-    if (region.defaultColor.toUpperCase() !== currentColor.toUpperCase()) {
-      // Wrong color — shake + hint badge.
-      canvasWrap.classList.remove("shake");
-      void canvasWrap.offsetWidth;  // restart animation
-      canvasWrap.classList.add("shake");
-      const expected = props.page.palette.indexOf(region.defaultColor.toUpperCase()) + 1;
-      const hint = el("div", { class: "wrong-hint" }, `Try color #${expected}`);
-      hint.style.left = `${e.clientX - canvasWrap.getBoundingClientRect().left}px`;
-      hint.style.top = `${e.clientY - canvasWrap.getBoundingClientRect().top - 50}px`;
-      canvasWrap.appendChild(hint);
-      setTimeout(() => hint.remove(), 1400);
-      return;
-    }
-
-    // Correct: fill the region.
-    renderer.floodFill(regionID, currentColor, 1);
+    // EASY MODE for ages 3-6: tap any region, it fills with the correct
+    // color automatically. The palette below stays as a legend showing
+    // progress, but doesn't gate the fill — pre-readers shouldn't have to
+    // match colors before tapping.
+    const fillColor = region.defaultColor;
+    renderer.floodFill(regionID, fillColor, 1);
     renderer.draw();
-    filled.set(regionID, currentColor);
+    filled.set(regionID, fillColor);
     updateProgress();
+    rebuildPalette();   // refresh completed-color visual state
+    hideRegionNumber(regionID);
     autosave();
 
-    // Tiny confetti burst at the tap point — adds satisfying feedback.
+    // Tiny confetti burst at the tap point.
     const wrapRect = canvasWrap.getBoundingClientRect();
     showConfettiBurst(canvasWrap, e.clientX - wrapRect.left, e.clientY - wrapRect.top, 8);
-
-    // Did we just finish this color in the palette?
-    if (paletteCompleted(currentColor)) {
-      autoAdvancePalette();
-    }
 
     // Are we DONE?
     if (isComplete()) {
@@ -265,21 +389,91 @@ export function renderColoring(root: HTMLElement, props: ColoringProps): void {
     }
   }
 
+  // Render number labels at each region's pole-of-inaccessibility so kids
+  // see WHICH color goes where. Numbers are HTML overlay divs sized to the
+  // canvas, so they scale crisply at any DPI. Hidden as regions fill.
+  const numberOverlay = el("div", {
+    style: "position:absolute;inset:0;pointer-events:none;",
+  });
+  canvasWrap.appendChild(numberOverlay);
+  const numberLabels = new Map<number, HTMLElement>();
+
+  function buildRegionNumbers(): void {
+    if (props.mode !== "cbn") return;
+    numberOverlay.replaceChildren();
+    numberLabels.clear();
+    for (const region of props.page.regions) {
+      if (filled.has(region.id)) continue;
+      const center = regionLabelCenter(region, props.page.size);
+      const label = el("div", {
+        style: "position:absolute;transform:translate(-50%,-50%);" +
+               "font-family:Fredoka,sans-serif;font-weight:700;" +
+               "color:rgba(42,42,46,0.65);" +
+               "text-shadow:0 1px 2px rgba(255,255,255,0.8);" +
+               "pointer-events:none;user-select:none;",
+      }, String(region.number));
+      label.dataset.region = String(region.id);
+      label.dataset.cx = String(center.x);
+      label.dataset.cy = String(center.y);
+      numberOverlay.appendChild(label);
+      numberLabels.set(region.id, label);
+    }
+    positionRegionNumbers();
+  }
+
+  function positionRegionNumbers(): void {
+    const wrapRect = canvasWrap.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+    const offsetX = canvasRect.left - wrapRect.left;
+    const offsetY = canvasRect.top - wrapRect.top;
+    const scale = canvasRect.width / props.page.size;
+    const fontPx = Math.max(12, Math.round(28 * scale));
+    for (const [, label] of numberLabels) {
+      const cx = Number(label.dataset.cx);
+      const cy = Number(label.dataset.cy);
+      label.style.left = `${offsetX + cx * scale}px`;
+      label.style.top = `${offsetY + cy * scale}px`;
+      label.style.fontSize = `${fontPx}px`;
+    }
+  }
+
+  function hideRegionNumber(id: number): void {
+    const label = numberLabels.get(id);
+    if (!label) return;
+    label.style.transition = "opacity 0.3s, transform 0.3s";
+    label.style.opacity = "0";
+    label.style.transform = "translate(-50%, -50%) scale(0.4)";
+    setTimeout(() => label.remove(), 320);
+    numberLabels.delete(id);
+  }
+
   function handleFreeStrokeStart(e: PointerEvent): void {
     canvas.setPointerCapture(e.pointerId);
     drawing = true;
     const uv = pageUVFromEvent(e);
+    // Capture the region under the touch for stay-in-the-lines clipping.
+    if (stayInLines) {
+      const rid = renderer.regionAt(uv);
+      // Renderer's clipRegionID convention is 1-based (regionID + 1).
+      activeClipRegion = rid >= 0 ? rid + 1 : 0;
+    } else {
+      activeClipRegion = 0;
+    }
     renderer.startStroke(uv);
-    // The first move handler call will emit the first stamp.
     handleFreeStrokeMove(e);
+  }
+
+  // Build a brush with the current size multiplier applied.
+  function sizedBrush(): Brush {
+    return { ...currentBrush, radius: currentBrush.radius * currentSizeMult };
   }
 
   function handleFreeStrokeMove(e: PointerEvent): void {
     if (!drawing) return;
     const uv = pageUVFromEvent(e);
-    const pressure = e.pressure > 0 ? e.pressure : 0.5;  // floor for finger
+    const pressure = e.pressure > 0 ? e.pressure : 0.5;
     const color = hexToRgba(currentColor);
-    renderer.continueStroke(currentBrush, [color[0], color[1], color[2]], uv, pressure, 0);
+    renderer.continueStroke(sizedBrush(), [color[0], color[1], color[2]], uv, pressure, activeClipRegion);
     renderer.draw();
   }
 
@@ -343,15 +537,24 @@ export function renderColoring(root: HTMLElement, props: ColoringProps): void {
     a.click();
   });
 
-  // Resize observer — keep canvas pixel size in sync with CSS size.
+  // Resize observer — keep canvas pixel size in sync with CSS size, and
+  // reposition the CBN number labels to match.
   const ro = new ResizeObserver(() => {
     sizeCanvas(canvas, canvasWrap, props.page);
     renderer.draw();
+    positionRegionNumbers();
   });
   ro.observe(canvasWrap);
 
   // Initial draw.
   renderer.draw();
+
+  // Build CBN number labels after first draw so the canvas has a known size.
+  buildRegionNumbers();
+  // For pages opened mid-session (with some regions already filled from
+  // persistence), make sure those numbers don't render at all.
+  // (filled is hydrated from the renderer's restored paint... but we don't
+  // track per-region fill state across reloads yet — that's a future polish.)
 
   function triggerCompletion(): void {
     showCelebration({

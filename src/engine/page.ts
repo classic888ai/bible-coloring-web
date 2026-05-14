@@ -66,3 +66,61 @@ export function hexToRgba(hex: string, alpha = 1): [number, number, number, numb
     alpha,
   ];
 }
+
+/**
+ * Compute the "pole of inaccessibility" approximation for a region — the
+ * point furthest from any edge — by binary-search probing a grid then
+ * refining. This is where number labels look best (always inside the
+ * region, never near a boundary).
+ */
+export function regionLabelCenter(region: Region, pageSize: number): { x: number; y: number } {
+  // Cheap: sample on a coarse grid, take the point with the largest
+  // distance to the nearest edge. For our hand-authored regions this is
+  // good enough; SVG regions of any complexity would need a real PIA algo.
+  const tmp = document.createElement("canvas");
+  tmp.width = pageSize;
+  tmp.height = pageSize;
+  const ctx = tmp.getContext("2d");
+  if (!ctx) return { x: pageSize / 2, y: pageSize / 2 };
+  ctx.fillStyle = "white";
+  ctx.fill(region.path);
+
+  // Sample a 24×24 grid. For each sampled "inside" pixel, find nearest edge
+  // by stepping outward. Pick max.
+  const data = ctx.getImageData(0, 0, pageSize, pageSize).data;
+  const isInside = (x: number, y: number): boolean => {
+    if (x < 0 || y < 0 || x >= pageSize || y >= pageSize) return false;
+    const i = (y * pageSize + x) * 4;
+    return (data[i] ?? 0) > 0;
+  };
+
+  let bestX = pageSize / 2;
+  let bestY = pageSize / 2;
+  let bestDist = 0;
+
+  const step = Math.max(20, Math.floor(pageSize / 32));
+  for (let y = step; y < pageSize; y += step) {
+    for (let x = step; x < pageSize; x += step) {
+      if (!isInside(x, y)) continue;
+      // Estimate distance-to-edge by stepping out in 8 directions.
+      let minEdge = Infinity;
+      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]] as const) {
+        let d = 0;
+        let cx = x;
+        let cy = y;
+        while (isInside(cx, cy) && d < 400) {
+          cx += dx * 8;
+          cy += dy * 8;
+          d += 8;
+        }
+        if (d < minEdge) minEdge = d;
+      }
+      if (minEdge > bestDist) {
+        bestDist = minEdge;
+        bestX = x;
+        bestY = y;
+      }
+    }
+  }
+  return { x: bestX, y: bestY };
+}

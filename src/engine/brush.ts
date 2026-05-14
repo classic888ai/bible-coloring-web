@@ -3,9 +3,10 @@
 // the rendering branch. Sizes are in PAINT-TEXTURE pixels (the paint texture
 // is 2048×2048, so a radius of 24 ≈ a strong middle-mark crayon).
 
-export type TextureMode = 0 | 1 | 2 | 3 | 4;
+export type TextureMode = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 // 0 = waxy (crayon), 1 = flat (marker), 2 = speckled (chalk),
-// 3 = bristle (paintbrush), 4 = fibrous (colored pencil)
+// 3 = bristle (paintbrush), 4 = fibrous (colored pencil),
+// 5 = glitter (sparkle), 6 = spray paint, 7 = watercolor, 8 = star stamp
 
 export interface Brush {
   name: string;
@@ -49,22 +50,25 @@ export const BRUSHES: Record<string, Brush> = {
                               // are extracted)
     paperTile: 7.0,
   },
-  // Pencil — narrow, hard, dense paper-tooth modulation. Tile paper grain
-  // tighter (~14) so the fiber strokes look finer.
+  // Pencil — colored pencil. Distinct from crayon in three ways:
+  //   1. Tiny radius (6) — pencil makes a narrow mark, not a fat stroke
+  //   2. Very hard edge (0.95) — pencil tip is sharp, not soft
+  //   3. Shader mode 4 — no wax-skip mask; pencil glides over paper bumps
+  //      and reveals them as fine speckle inside a continuous line
   pencil: {
     name: "Pencil",
     icon: "✏️",
-    radius: 10,
-    spacing: 0.20,
-    baseAlpha: 0.55,
-    hardness: 0.85,
-    angleJitter: 0.3,
-    grainStrength: 0.92,
-    sizeJitter: 0.06,
+    radius: 6,
+    spacing: 0.12,
+    baseAlpha: 0.65,
+    hardness: 0.95,
+    angleJitter: 0.2,
+    grainStrength: 0.55,
+    sizeJitter: 0.04,
     hueStep: 0,
     textureMode: 4,
     shapeTexture: null,
-    paperTile: 14.0,
+    paperTile: 22.0,
   },
   // Chalk — sparse dotted shape texture × paper grain. Real shape stamps.
   chalk: {
@@ -127,6 +131,82 @@ export const BRUSHES: Record<string, Brush> = {
     sizeJitter: 0.0,
     hueStep: 0.013,
     textureMode: 1,
+    shapeTexture: null,
+    paperTile: 0,
+  },
+
+  // ──────────────────────────────────────────────────────────
+  // FUN BRUSHES — kids 3-6 love sparkle, novelty, and stamps.
+  // ──────────────────────────────────────────────────────────
+
+  // Glitter — sparkly stamps, hue cycles slowly so a drag has rainbow
+  // glints. Wide spacing so individual sparkles are visible.
+  glitter: {
+    name: "Glitter",
+    icon: "✨",
+    radius: 18,
+    spacing: 0.45,
+    baseAlpha: 0.85,
+    hardness: 0.50,
+    angleJitter: Math.PI,
+    grainStrength: 0,
+    sizeJitter: 0.35,
+    hueStep: 0.04,           // strong hue cycle — each sparkle is a new color
+    textureMode: 5,
+    shapeTexture: null,
+    paperTile: 0,
+  },
+
+  // Spray paint — scattered fine dots, soft edged. Wide radius covers area
+  // fast; tight stamps so the spray pattern reads as a continuous cloud.
+  spray: {
+    name: "Spray",
+    icon: "🎨",
+    radius: 32,
+    spacing: 0.18,
+    baseAlpha: 0.65,
+    hardness: 0.0,
+    angleJitter: Math.PI,
+    grainStrength: 0,
+    sizeJitter: 0.10,
+    hueStep: 0,
+    textureMode: 6,
+    shapeTexture: null,
+    paperTile: 0,
+  },
+
+  // Watercolor — soft wet pigment that builds with overlap. Low alpha,
+  // medium radius, very tight spacing so the wash looks continuous.
+  watercolor: {
+    name: "Water",
+    icon: "💧",
+    radius: 38,
+    spacing: 0.10,
+    baseAlpha: 0.25,
+    hardness: 0.0,
+    angleJitter: 0,
+    grainStrength: 0,
+    sizeJitter: 0.20,
+    hueStep: 0,
+    textureMode: 7,
+    shapeTexture: null,
+    paperTile: 0,
+  },
+
+  // Star stamp — discrete star shapes. Wide spacing so each stamp is its
+  // own little star, not overlapping into a blob.
+  stars: {
+    name: "Stars",
+    icon: "⭐",
+    radius: 22,
+    spacing: 0.85,
+    baseAlpha: 0.95,
+    hardness: 0.0,            // unused — starCoverage in shader handles silhouette
+    angleJitter: 0.4,
+    grainStrength: 0,
+    sizeJitter: 0.25,
+    hueStep: 0.018,           // each star slightly different color
+    textureMode: 8,
     shapeTexture: null,
     paperTile: 0,
   },

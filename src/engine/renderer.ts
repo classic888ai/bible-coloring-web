@@ -279,6 +279,7 @@ export class Renderer {
     gl.uniform1i(this.stampU("u_textureMode"), brush.textureMode);
     gl.uniform1f(this.stampU("u_clipRegionID"), clipRegionID / 255);
     gl.uniform1f(this.stampU("u_paperTile"), brush.paperTile);
+    gl.uniform1f(this.stampU("u_stampSeed"), this.rand() * 100);
 
     // Texture unit 0 — region IDs.
     gl.activeTexture(gl.TEXTURE0);

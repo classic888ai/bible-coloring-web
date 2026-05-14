@@ -28,6 +28,10 @@ export const Icons = {
   brush_marker: () => parseSvg(svg(`<path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-4 17l-3-3 3-3v2h6v2h-6v2z"/>`)),
   brush_paint: () => parseSvg(svg(`<path d="M18 4V3a1 1 0 00-1-1H5a1 1 0 00-1 1v4a1 1 0 001 1h12a1 1 0 001-1V6h1v4H9v11a1 1 0 001 1h2a1 1 0 001-1v-9h9V4h-4z"/>`)),
   brush_rainbow: () => parseSvg(svg(`<path d="M12 7c-5.52 0-10 4.48-10 10h2c0-4.42 3.58-8 8-8s8 3.58 8 8h2c0-5.52-4.48-10-10-10zm0 4c-3.31 0-6 2.69-6 6h2c0-2.21 1.79-4 4-4s4 1.79 4 4h2c0-3.31-2.69-6-6-6zm0 4c-1.1 0-2 .9-2 2h4c0-1.1-.9-2-2-2z"/>`)),
+  brush_glitter: () => parseSvg(svg(`<path d="M12 2l1.6 4.4L18 8l-4.4 1.6L12 14l-1.6-4.4L6 8l4.4-1.6L12 2zm6 12l.9 2.5L21.5 17l-2.6.9L18 20.5l-.9-2.6L14.5 17l2.6-.5L18 14zm-13 0l.9 2.5L8.5 17l-2.6.9L5 20.5l-.9-2.6L1.5 17l2.6-.5L5 14z"/>`)),
+  brush_spray: () => parseSvg(svg(`<circle cx="6" cy="6" r="1.2"/><circle cx="10" cy="4" r="1.2"/><circle cx="14" cy="6" r="1.2"/><circle cx="18" cy="5" r="1.2"/><circle cx="7" cy="10" r="1.2"/><circle cx="12" cy="9" r="1.2"/><circle cx="17" cy="11" r="1.2"/><circle cx="5" cy="14" r="1.2"/><circle cx="10" cy="15" r="1.2"/><circle cx="15" cy="14" r="1.2"/><circle cx="19" cy="15" r="1.2"/><circle cx="8" cy="19" r="1.2"/><circle cx="13" cy="18" r="1.2"/><circle cx="18" cy="19" r="1.2"/>`)),
+  brush_watercolor: () => parseSvg(svg(`<path d="M12 2C9.24 6.34 6 10.59 6 14.71 6 18.74 8.69 22 12 22s6-3.26 6-7.29C18 10.59 14.76 6.34 12 2zm0 18.5c-2.43 0-4.5-2.27-4.5-5.29 0-2.71 2.07-5.93 4.5-9.21 2.43 3.28 4.5 6.5 4.5 9.21 0 3.02-2.07 5.29-4.5 5.29z"/>`)),
+  brush_stars: () => parseSvg(svg(`<path d="M12 2l3 7.5L23 10l-6 5 2 8-7-4-7 4 2-8L1 10l8-0.5L12 2z"/>`)),
 };
 
 export type IconName = keyof typeof Icons;
