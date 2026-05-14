@@ -1,0 +1,5 @@
+Texture credits (must be included in the app's "Credits" screen on production build):
+
+- paper.jpg: ambientCG "Paper001" (CC0 / Public Domain) — https://ambientcg.com/view?id=Paper001
+- shape_chalk.png, shape_bristle.png, shape_painterly.png, grain_canvas.png:
+  David Revoy "Deevad 25.01" Krita bundle (CC0 / Public Domain) — https://www.davidrevoy.com
