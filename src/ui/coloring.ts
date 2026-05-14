@@ -9,7 +9,7 @@ import { Renderer } from "../engine/renderer.js";
 import { BRUSHES, type Brush, type BrushName } from "../engine/brush.js";
 import { type ColoringPage, hexToRgba, regionLabelCenter } from "../engine/page.js";
 import { el } from "./dom.js";
-import { showCelebration, showConfettiBurst } from "./celebration.js";
+import { showCelebration, showConfettiBurst, showTapPop } from "./celebration.js";
 import type { Mode } from "./home.js";
 import { Icons } from "./icons.js";
 import { loadPaint, savePaint, deletePaint } from "../engine/persistence.js";
@@ -377,9 +377,13 @@ export function renderColoring(root: HTMLElement, props: ColoringProps): void {
     hideRegionNumber(regionID);
     autosave();
 
-    // Tiny confetti burst at the tap point.
+    // Tap feedback — ripple + pop + audio + haptic + confetti micro-burst.
+    // Multi-sensory feedback is the defining "Happy Color feel" element.
     const wrapRect = canvasWrap.getBoundingClientRect();
-    showConfettiBurst(canvasWrap, e.clientX - wrapRect.left, e.clientY - wrapRect.top, 8);
+    const tx = e.clientX - wrapRect.left;
+    const ty = e.clientY - wrapRect.top;
+    showTapPop(canvasWrap, tx, ty, fillColor);
+    showConfettiBurst(canvasWrap, tx, ty, 6);
 
     // Are we DONE?
     if (isComplete()) {

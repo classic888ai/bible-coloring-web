@@ -80,12 +80,20 @@ h1, h2, h3 {
 
 .home-logo {
   font-family: 'Fredoka', sans-serif;
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 700;
   color: var(--ink);
+  letter-spacing: -0.02em;
+  line-height: 1;
 }
 
-.home-logo .accent { color: var(--gold-deep); }
+.home-logo .accent {
+  color: var(--gold-deep);
+  background: linear-gradient(135deg, var(--gold) 0%, var(--coral) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
 
 .home-gear {
   width: 44px;
@@ -182,10 +190,11 @@ h1, h2, h3 {
 
 .category-title {
   font-family: 'Fredoka', sans-serif;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   color: var(--ink);
-  padding: 4px 18px 8px;
+  padding: 8px 18px 10px;
+  letter-spacing: -0.01em;
 }
 
 .category-strip {
@@ -201,10 +210,10 @@ h1, h2, h3 {
 
 .story-tile {
   flex-shrink: 0;
-  width: 160px;
+  width: 180px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   scroll-snap-align: start;
   transition: transform 0.12s ease;
 }
@@ -324,6 +333,45 @@ h1, h2, h3 {
   box-shadow: 0 12px 32px var(--shadow-strong);
   touch-action: none;
   display: block;
+}
+
+/* Tap-fill ripple — a radial "splash" emitted from the tap point when a
+ * region fills. The single biggest "feel" upgrade vs Happy Color since
+ * their fills aren't instantaneous either — they have a satisfying pop. */
+.tap-ripple {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle,
+    var(--ripple-color, rgba(255,255,255,0.9)) 0%,
+    var(--ripple-color, rgba(255,255,255,0.6)) 30%,
+    transparent 70%);
+  transform: translate(-50%, -50%) scale(0);
+  animation: tapRipple 0.45s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+  mix-blend-mode: overlay;
+}
+
+@keyframes tapRipple {
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 0.95; }
+  50% { opacity: 0.7; }
+  100% { transform: translate(-50%, -50%) scale(3.5); opacity: 0; }
+}
+
+/* Pop "burst" on tap-fill — a chunky concentric ring that scales out fast. */
+.tap-pop {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  pointer-events: none;
+  border: 4px solid var(--ripple-color, var(--gold));
+  transform: translate(-50%, -50%) scale(0.3);
+  animation: tapPop 0.5s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+}
+
+@keyframes tapPop {
+  0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; border-width: 4px; }
+  100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; border-width: 1px; }
 }
 
 /* Wrong-color shake when the user picks the wrong CBN color. */

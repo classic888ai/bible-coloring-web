@@ -112,3 +112,58 @@ export function showConfettiBurst(container: HTMLElement, x: number, y: number, 
     setTimeout(() => p.remove(), 2400);
   }
 }
+
+/**
+ * Quick "splash" feedback when a region fills. Two layered elements:
+ *  - tap-ripple: a soft radial glow that scales out
+ *  - tap-pop: a chunky ring outline that scales out faster
+ *
+ * Plus a short audio "pop" so the action has multi-sensory feedback. This
+ * is the single most important polish for matching Happy Color's feel —
+ * every tap-fill should land with satisfaction.
+ */
+export function showTapPop(container: HTMLElement, x: number, y: number, color: string): void {
+  const ripple = el("div", { class: "tap-ripple" });
+  ripple.style.left = `${x}px`;
+  ripple.style.top = `${y}px`;
+  ripple.style.width = "120px";
+  ripple.style.height = "120px";
+  ripple.style.setProperty("--ripple-color", color);
+  container.appendChild(ripple);
+  setTimeout(() => ripple.remove(), 500);
+
+  const pop = el("div", { class: "tap-pop" });
+  pop.style.left = `${x}px`;
+  pop.style.top = `${y}px`;
+  pop.style.setProperty("--ripple-color", color);
+  container.appendChild(pop);
+  setTimeout(() => pop.remove(), 520);
+
+  // Audio "pop" — short, low-pitched, satisfying.
+  playPop();
+
+  // Haptic on supported devices (iOS Safari, Android Chrome).
+  try { navigator.vibrate?.(15); } catch { /* ignore */ }
+}
+
+function playPop(): void {
+  try {
+    type WindowWithAudio = Window & typeof globalThis & {
+      webkitAudioContext?: typeof AudioContext;
+    };
+    const w = window as WindowWithAudio;
+    const AC = w.AudioContext ?? w.webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(560, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + 0.10);
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.12);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.13);
+  } catch { /* ignore */ }
+}
