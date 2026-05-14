@@ -66,6 +66,17 @@ export class Renderer {
   private rngState = 0;
   private onRedraw: (() => void) | null = null;
 
+  // Stabilizer state. The stamp head trails the finger by a configurable
+  // smoothing factor; jittery finger input becomes smooth strokes —
+  // exactly the Procreate-style "premium feel" upgrade. Single-pole IIR
+  // low-pass filter applied to position.
+  private stabX = 0;
+  private stabY = 0;
+  /** 0..1, lower = smoother + more lag. 0.45 = light smoothing with ~2
+   *  frames of lag at 60 Hz. Aggressive enough to kill finger jitter,
+   *  light enough that the stamp head stays under the user's finger. */
+  private stabilizerStrength = 0.45;
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     const gl = canvas.getContext("webgl2", {
@@ -225,14 +236,16 @@ export class Renderer {
   startStroke(uv: { x: number; y: number }): void {
     this.dragLastX = uv.x;
     this.dragLastY = uv.y;
+    this.stabX = uv.x;
+    this.stabY = uv.y;
     this.dragAccumulated = 0;
   }
 
   /**
-   * Continue a stroke. Emits stamps along the segment from the previous point
-   * to (uv.x, uv.y), spaced by brush.spacing * brush.radius (in paint pixels).
-   * `clipRegionID` is 1-based (matches what the shader compares against the
-   * region texture). 0 = no clip.
+   * Continue a stroke. Emits stamps from the previous (stabilized) point
+   * to a new stabilized point that's a low-pass-filtered version of the
+   * raw input — Procreate-style smoothing. The finger may jitter; the
+   * stamp head moves smoothly.
    */
   continueStroke(
     brush: Brush,
@@ -241,12 +254,20 @@ export class Renderer {
     pressure: number,
     clipRegionID: number,
   ): void {
+    // Apply the stabilizer: stamp position lerps toward finger position
+    // by a fraction each call. Lower fraction = smoother + more drag-lag.
+    this.stabX += (uv.x - this.stabX) * this.stabilizerStrength;
+    this.stabY += (uv.y - this.stabY) * this.stabilizerStrength;
+
+    const targetX = this.stabX;
+    const targetY = this.stabY;
+
     const radiusPx = brush.radius;
     const stepPx = Math.max(1.0, radiusPx * brush.spacing);
     const stepUV = stepPx / this.page.size;
 
-    const dx = uv.x - this.dragLastX;
-    const dy = uv.y - this.dragLastY;
+    const dx = targetX - this.dragLastX;
+    const dy = targetY - this.dragLastY;
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist === 0) return;
 
@@ -261,9 +282,10 @@ export class Renderer {
       this.emitStamp(brush, color, cursorX, cursorY, pressure, clipRegionID);
     }
     this.dragAccumulated = remaining;
-    this.dragLastX = uv.x;
-    this.dragLastY = uv.y;
+    this.dragLastX = targetX;
+    this.dragLastY = targetY;
   }
+
 
   /** End a stroke. Reserved for future undo-snapshot hooks. */
   endStroke(): void {

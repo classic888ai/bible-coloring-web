@@ -317,7 +317,19 @@ function makeCustomThumbnail(page: ColoringPage): HTMLImageElement {
   return img;
 }
 
-function makeThumbnail(page: ColoringPage): HTMLCanvasElement {
+function makeThumbnail(page: ColoringPage): HTMLElement {
+  // For bitmap-lineart pages (AI-generated or imported), use an <img>
+  // element directly — the bundled PNG already has the artwork.
+  if (page.lineartImageURL) {
+    const img = new Image();
+    img.src = page.lineartImageURL;
+    img.style.width = "100%";
+    img.style.height = "100%";
+    img.style.objectFit = "contain";
+    img.style.background = "white";
+    return img;
+  }
+
   const c = document.createElement("canvas");
   c.width = 320;
   c.height = 320;
@@ -329,14 +341,11 @@ function makeThumbnail(page: ColoringPage): HTMLCanvasElement {
   ctx.save();
   ctx.scale(scale, scale);
 
-  // Faint pre-color hint — show defaultColor of each region at ~38% so
-  // the kid sees what's possible.
   for (const region of page.regions) {
     ctx.fillStyle = region.defaultColor + "60";
     ctx.fill(region.path);
   }
 
-  // Lineart on top.
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   for (const stroke of page.lineart) {

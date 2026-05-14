@@ -53,25 +53,26 @@ export const BRUSHES: Record<string, Brush> = {
                               // wax texture at native scale
     grainTexture: "crayon_grain.png",
   },
-  // Pencil — colored pencil. Distinct from crayon in three ways:
-  //   1. Tiny radius (6) — pencil makes a narrow mark, not a fat stroke
-  //   2. Very hard edge (0.95) — pencil tip is sharp, not soft
-  //   3. Shader mode 4 — no wax-skip mask; pencil glides over paper bumps
-  //      and reveals them as fine speckle inside a continuous line
+  // Pencil — colored pencil. Now uses REAL graphite-on-paper photo
+  // (pencil_grain.png from user's pencil-scribble-2.jpg) as the grain
+  // texture. Slightly wider + softer edge + lower base alpha than the
+  // previous version so it reads as "soft colored pencil tooth" rather
+  // than "fine-line pen." Builds up through overlap like real pencil.
   pencil: {
     name: "Pencil",
     icon: "✏️",
-    radius: 6,
-    spacing: 0.12,
-    baseAlpha: 0.65,
-    hardness: 0.95,
-    angleJitter: 0.2,
-    grainStrength: 0.55,
-    sizeJitter: 0.04,
+    radius: 11,
+    spacing: 0.14,
+    baseAlpha: 0.42,
+    hardness: 0.65,
+    angleJitter: 0.25,
+    grainStrength: 0.85,
+    sizeJitter: 0.08,
     hueStep: 0,
     textureMode: 4,
     shapeTexture: null,
-    paperTile: 22.0,
+    paperTile: 5.0,        // texture is already at right scale; no over-tiling
+    grainTexture: "pencil_grain.png",
   },
   // Chalk — sparse dotted shape texture × paper grain. Real shape stamps.
   chalk: {
