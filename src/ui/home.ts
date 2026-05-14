@@ -117,12 +117,51 @@ export function renderHome(root: HTMLElement, props: HomeProps): void {
     el("div", { class: "home-scroll" }, [
       modeRow,
       categoriesEl,
-      el("div", { style: "height: 40px" }),
+      makeUpcomingTeaser(),
+      makeFooter(),
     ]),
   ]);
 
   root.appendChild(home);
   maybeShowFirstLaunchHint();
+}
+
+// A teaser for the next content pack — implies an active product roadmap.
+// Tapping "Notify me" pops an email mailto so parents can opt in.
+function makeUpcomingTeaser(): HTMLElement {
+  const upgrade = el("div", {
+    style: "margin:12px 18px 24px;padding:20px;border-radius:24px;" +
+           "background:linear-gradient(135deg,#FFE7B5 0%,#F7C078 100%);" +
+           "color:#2A2A2E;box-shadow:0 6px 16px rgba(42,42,46,0.10);" +
+           "display:flex;flex-direction:column;gap:8px;",
+  }, [
+    el("div", {
+      style: "font-family:Fredoka,sans-serif;font-size:20px;font-weight:700",
+    }, "Coming soon: Jesus' Stories pack"),
+    el("div", { style: "font-size:14px;color:#5A4A2A;line-height:1.4" },
+      "12 more pages — the Nativity, miracles, parables. Free for early supporters."),
+  ]);
+  const cta = el("button", {
+    style: "align-self:flex-start;margin-top:6px;background:#2A2A2E;color:white;" +
+           "font-size:14px;font-weight:700;padding:10px 18px;border-radius:999px;",
+  }, "Notify me on iOS launch");
+  cta.addEventListener("click", () => {
+    const subject = encodeURIComponent("Notify me when Bible Coloring launches on iOS");
+    const body = encodeURIComponent("Please add me to the launch list!");
+    window.location.href = `mailto:hello@example.com?subject=${subject}&body=${body}`;
+  });
+  upgrade.appendChild(cta);
+  return upgrade;
+}
+
+function makeFooter(): HTMLElement {
+  return el("div", {
+    style: "padding:20px 18px 40px;text-align:center;color:var(--ink-2);font-size:12px;line-height:1.5",
+  }, [
+    el("div", { style: "font-weight:700;margin-bottom:4px" }, "Bible Coloring"),
+    el("div", {}, "Joyful coloring for ages 3–6. Free to play. No ads, ever."),
+    el("div", { style: "margin-top:10px;opacity:0.7" }, "Brush textures CC0 via ambientCG + David Revoy. Made with care."),
+  ]);
 }
 
 const ONBOARD_KEY = "ce-onboarded";
