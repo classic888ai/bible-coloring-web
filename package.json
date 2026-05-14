@@ -1,0 +1,17 @@
+{
+  "name": "coloring-engine-web",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Web demo of ColoringEngine — testable in any browser",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "deploy": "npm run build && npx surge ./dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vite": "^5.2.10"
+  }
+}

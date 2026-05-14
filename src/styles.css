@@ -1,0 +1,628 @@
+/* Bible Coloring web demo — design system per `references/top_apps_research.md`.
+ * Aesthetic anchor: Bible App for Kids' warm hand-drawn watercolor world +
+ * Happy Color's tap-to-fill mechanic. Min 64pt hit targets, 20pt button
+ * corners, 24pt card corners, never pure white, never pure black. */
+
+:root {
+  /* Brand */
+  --cream: #FBF3E4;            /* main background — warm, low-glare */
+  --cream-2: #F4E9D1;          /* darker cream for canvas underlay */
+  --gold: #E8B547;             /* primary accent — CTAs, active state */
+  --gold-deep: #C7973B;
+  --leaf: #6FBF73;             /* secondary — success, "next" */
+  --leaf-deep: #4FA055;
+  --coral: #F08A6E;            /* tertiary — palette pop, badges */
+  --coral-deep: #D86F55;
+  --ink: #2A2A2E;              /* primary text — charcoal, never pure black */
+  --ink-2: #5A5A66;            /* secondary text */
+  --line-warm: rgba(139, 90, 43, 0.20); /* warm-brown 20% — storybook stroke */
+  --shadow: rgba(42, 42, 46, 0.10);
+  --shadow-strong: rgba(42, 42, 46, 0.20);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #app {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  touch-action: none;
+}
+
+body {
+  font-family: 'Nunito', system-ui, sans-serif;
+  background: var(--cream);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 17px;
+  line-height: 1.4;
+}
+
+button {
+  font-family: inherit;
+  border: none;
+  cursor: pointer;
+  background: none;
+  color: inherit;
+  font-weight: 700;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1, h2, h3 {
+  font-family: 'Fredoka', system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* =================================================================
+ * HOME SCREEN — categorized story gallery, NOT a menu screen
+ * ================================================================= */
+
+.home {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--cream);
+}
+
+.home-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  flex-shrink: 0;
+}
+
+.home-logo {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.home-logo .accent { color: var(--gold-deep); }
+
+.home-gear {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: white;
+  border: 1px solid var(--line-warm);
+  box-shadow: 0 2px 4px var(--shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.home-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 32px;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Mode picker — two BIG cards at the top, before story rows.
+ * This is THE primary navigation choice. */
+.mode-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  padding: 8px 16px 18px;
+}
+
+.mode-card {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 10px;
+  color: white;
+  box-shadow: 0 8px 24px var(--shadow-strong);
+  transition: transform 0.15s ease;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.4);
+  min-width: 0;
+}
+
+.mode-card:active { transform: scale(0.96); }
+
+.mode-card.free {
+  background: linear-gradient(160deg, var(--coral) 0%, var(--gold) 100%);
+}
+
+.mode-card.numbers {
+  background: linear-gradient(160deg, var(--leaf) 0%, #4FA0BF 100%);
+}
+
+.mode-card-icon {
+  font-size: clamp(40px, 10vw, 64px);
+  line-height: 1;
+  filter: drop-shadow(0 3px 5px rgba(0,0,0,0.18));
+}
+
+.mode-card-title {
+  font-family: 'Fredoka', sans-serif;
+  font-size: clamp(16px, 4vw, 22px);
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  width: 100%;
+  word-wrap: break-word;
+}
+
+.mode-card-sub {
+  font-size: clamp(11px, 2.2vw, 13px);
+  font-weight: 600;
+  opacity: 0.92;
+  text-align: center;
+  line-height: 1.25;
+  max-width: 20ch;
+}
+
+/* Category rows below the mode picker. Each row is a horizontally
+ * scrolling strip of story tiles. */
+.category {
+  margin: 4px 0 12px;
+}
+
+.category-title {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+  padding: 4px 18px 8px;
+}
+
+.category-strip {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 18px 8px;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+}
+
+.category-strip::-webkit-scrollbar { display: none; }
+
+.story-tile {
+  flex-shrink: 0;
+  width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scroll-snap-align: start;
+  transition: transform 0.12s ease;
+}
+
+.story-tile:active { transform: scale(0.96); }
+
+.story-thumb {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 24px;
+  background: white;
+  border: 2px solid var(--line-warm);
+  box-shadow: 0 6px 16px var(--shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.story-thumb canvas, .story-thumb svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.story-title {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--ink);
+}
+
+/* =================================================================
+ * COLORING SCREENS (shared between free and CBN)
+ * ================================================================= */
+
+.coloring {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--cream-2);
+}
+
+.top-bar {
+  display: flex;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--cream);
+  box-shadow: 0 2px 8px var(--shadow);
+  z-index: 10;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.icon-button {
+  width: 48px;
+  height: 48px;
+  border-radius: 24px;
+  background: white;
+  border: 1px solid var(--line-warm);
+  box-shadow: 0 2px 4px var(--shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+  transition: transform 0.1s, opacity 0.1s;
+  color: var(--ink);
+}
+
+.icon-button:active { transform: scale(0.92); }
+.icon-button:disabled { opacity: 0.4; }
+
+.icon-button.primary {
+  background: var(--gold);
+  color: white;
+  border-color: var(--gold-deep);
+}
+
+.top-bar-spacer { flex: 1; }
+
+.progress-bar {
+  flex: 1;
+  margin: 0 8px;
+  height: 8px;
+  background: rgba(255,255,255,0.6);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--line-warm);
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--leaf), var(--gold));
+  transition: width 0.3s ease;
+}
+
+.canvas-wrap {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--cream-2), #E8DEC0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+
+#canvas {
+  max-width: 100%;
+  max-height: 100%;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 12px 32px var(--shadow-strong);
+  touch-action: none;
+  display: block;
+}
+
+/* Wrong-color shake when the user picks the wrong CBN color. */
+.canvas-wrap.shake {
+  animation: shake 0.22s ease-in-out;
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.bottom-panel {
+  background: var(--cream);
+  box-shadow: 0 -2px 12px var(--shadow);
+  padding: 10px 0 14px;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+/* Palette — bottom-anchored, horizontal scroll, 60pt circle swatches */
+.palette {
+  display: flex;
+  gap: 12px;
+  padding: 8px 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.palette::-webkit-scrollbar { display: none; }
+
+.swatch {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 3px solid var(--cream);
+  box-shadow: 0 3px 8px var(--shadow);
+  scroll-snap-align: center;
+  position: relative;
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.swatch:active { transform: scale(0.92); }
+.swatch.selected {
+  transform: scale(1.15) translateY(-6px);
+  border-color: var(--ink);
+  box-shadow: 0 6px 14px var(--shadow-strong);
+}
+
+.swatch-number {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--cream);
+  border: 1.5px solid var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.swatch.completed {
+  opacity: 0.4;
+  transform: scale(1);
+}
+.swatch.completed::after {
+  content: '✓';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 800;
+  color: white;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+/* Tool dock (free mode only) — chunky buttons in a row */
+.toolbox {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 10px;
+  padding: 0 14px;
+  overflow-x: auto;
+}
+
+.toolbox::-webkit-scrollbar { display: none; }
+
+.tool {
+  min-width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  background: var(--cream-2);
+  border: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 10px;
+  transition: transform 0.12s, border-color 0.12s, background 0.12s;
+  flex-shrink: 0;
+}
+
+.tool-icon { font-size: 28px; line-height: 1; }
+.tool-label { font-size: 11px; font-weight: 700; color: var(--ink-2); }
+
+.tool:active { transform: scale(0.95); }
+.tool.selected {
+  background: white;
+  border-color: var(--gold);
+  box-shadow: 0 3px 8px var(--shadow);
+  transform: translateY(-2px);
+}
+.tool.selected .tool-label { color: var(--ink); }
+
+/* =================================================================
+ * COMPLETION CELEBRATION — the 3.5s sequence
+ * ================================================================= */
+
+.celebration {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.celebration.modal {
+  background: rgba(42, 42, 46, 0.55);
+  pointer-events: auto;
+  animation: fadeIn 0.4s ease 1.5s both;
+}
+
+.celebration-card {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%) translateY(120%);
+  width: min(420px, 90vw);
+  background: var(--cream);
+  border-radius: 32px 32px 0 0;
+  padding: 28px 24px 32px;
+  text-align: center;
+  box-shadow: 0 -20px 60px rgba(0,0,0,0.25);
+  border: 2px solid var(--line-warm);
+  border-bottom: none;
+  animation: slideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 1.5s both;
+}
+
+.celebration-emoji {
+  font-size: 72px;
+  margin-bottom: 6px;
+  animation: bounce 0.8s ease 2.1s both;
+}
+
+.celebration-title {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.celebration-sub {
+  font-size: 15px;
+  color: var(--ink-2);
+  margin-bottom: 22px;
+}
+
+.celebration-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.celebration-btn {
+  padding: 14px 24px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px var(--shadow);
+  transition: transform 0.1s;
+}
+
+.celebration-btn:active { transform: scale(0.95); }
+
+.celebration-btn.primary {
+  background: var(--gold);
+  color: white;
+}
+
+.celebration-btn.secondary {
+  background: white;
+  color: var(--ink);
+  border: 1px solid var(--line-warm);
+}
+
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+@keyframes slideUp {
+  from { transform: translateX(-50%) translateY(120%); }
+  to { transform: translateX(-50%) translateY(0); }
+}
+@keyframes bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-8px) scale(1.1); }
+}
+
+/* Confetti — 40 colored dots launched from the last-tap point. Generated
+ * by JS; randomized colors/velocities. */
+.confetti-particle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  pointer-events: none;
+  animation: confettiFall 2.2s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+
+@keyframes confettiFall {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--cx, 0px), var(--cy, 600px)) rotate(720deg) scale(0.5);
+    opacity: 0;
+  }
+}
+
+/* Sparkle sweep — a diagonal band that slides across the canvas. */
+.sparkle-sweep {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(255, 220, 120, 0.6) 45%,
+    rgba(255, 255, 255, 0.9) 50%,
+    rgba(255, 220, 120, 0.6) 55%,
+    transparent 70%
+  );
+  background-size: 300% 300%;
+  background-position: -150% -150%;
+  animation: sparkleSweep 0.9s ease 0.3s both;
+  mix-blend-mode: screen;
+}
+
+@keyframes sparkleSweep {
+  to { background-position: 150% 150%; }
+}
+
+/* Wrong-color hint pulse — a quick badge that appears near tap */
+.wrong-hint {
+  position: absolute;
+  background: var(--coral);
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 999px;
+  pointer-events: none;
+  box-shadow: 0 4px 12px var(--shadow-strong);
+  animation: pulseFade 1.4s ease forwards;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+}
+
+@keyframes pulseFade {
+  0% { opacity: 0; transform: translate(-50%, -30%) scale(0.6); }
+  15% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+  25% { transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -70%) scale(0.9); }
+}
+
+/* =================================================================
+ * Tutorial / first-launch hint
+ * ================================================================= */
+
+.tap-hint {
+  position: absolute;
+  font-size: 48px;
+  pointer-events: none;
+  animation: tapPulse 1.4s ease-in-out infinite;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  z-index: 50;
+}
+
+@keyframes tapPulse {
+  0%, 100% { transform: scale(1) translate(-50%, -50%); }
+  50% { transform: scale(1.2) translate(-42%, -42%); }
+}
