@@ -466,23 +466,33 @@ export function renderColoring(root: HTMLElement, props: ColoringProps): void {
     numberLabels.delete(id);
   }
 
+  // Speed-derived pressure state. On finger touches (no real pressure
+  // signal) we synthesize pressure from stroke velocity: slow = thick,
+  // fast = thin. This is what makes a coloring stroke feel responsive
+  // and natural — drag fast for outlines, slow down to deepen color.
+  let lastMoveX = 0;
+  let lastMoveY = 0;
+  let lastMoveTime = 0;
+  let smoothedPressure = 0.8;
+
   function handleFreeStrokeStart(e: PointerEvent): void {
     canvas.setPointerCapture(e.pointerId);
     drawing = true;
     const uv = pageUVFromEvent(e);
-    // Capture the region under the touch for stay-in-the-lines clipping.
     if (stayInLines) {
       const rid = renderer.regionAt(uv);
-      // Renderer's clipRegionID convention is 1-based (regionID + 1).
       activeClipRegion = rid >= 0 ? rid + 1 : 0;
     } else {
       activeClipRegion = 0;
     }
     renderer.startStroke(uv);
+    lastMoveX = uv.x;
+    lastMoveY = uv.y;
+    lastMoveTime = performance.now();
+    smoothedPressure = 0.85;
     handleFreeStrokeMove(e);
   }
 
-  // Build a brush with the current size multiplier applied.
   function sizedBrush(): Brush {
     return { ...currentBrush, radius: currentBrush.radius * currentSizeMult };
   }
@@ -490,7 +500,29 @@ export function renderColoring(root: HTMLElement, props: ColoringProps): void {
   function handleFreeStrokeMove(e: PointerEvent): void {
     if (!drawing) return;
     const uv = pageUVFromEvent(e);
-    const pressure = e.pressure > 0 ? e.pressure : 0.5;
+
+    // Speed → pressure mapping. Velocity in UV-per-ms. Slow (<0.001) =
+    // high pressure 1.0; fast (>0.006) = low pressure 0.35. Linear in between.
+    const now = performance.now();
+    const dt = Math.max(1, now - lastMoveTime);
+    const dx = uv.x - lastMoveX;
+    const dy = uv.y - lastMoveY;
+    const speed = Math.sqrt(dx * dx + dy * dy) / dt;
+    const slow = 0.0008, fast = 0.006;
+    const speedPressure = 1 - Math.min(1, Math.max(0, (speed - slow) / (fast - slow)));
+    const targetPressure = 0.35 + speedPressure * 0.65;
+    // Low-pass filter so pressure changes smoothly, not jumpy frame-to-frame.
+    smoothedPressure += (targetPressure - smoothedPressure) * 0.30;
+
+    // If the device DID send a real pressure (Apple Pencil, drawing tablet),
+    // prefer that — it's more accurate than our speed heuristic.
+    const realPressure = e.pressure > 0 && e.pressure < 1 ? e.pressure : null;
+    const pressure = realPressure ?? smoothedPressure;
+
+    lastMoveX = uv.x;
+    lastMoveY = uv.y;
+    lastMoveTime = now;
+
     const color = hexToRgba(currentColor);
     renderer.continueStroke(sizedBrush(), [color[0], color[1], color[2]], uv, pressure, activeClipRegion);
     renderer.draw();

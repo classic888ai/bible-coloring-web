@@ -7,6 +7,8 @@ import { CREATION } from "./creation.js";
 import { JONAH_FISH } from "./jonah-fish.js";
 import { PEACE_DOVE } from "./peace-dove.js";
 import { DAVID_GOLIATH } from "./david-goliath.js";
+import { MOSES_RED_SEA } from "./moses-red-sea.js";
+import { NATIVITY } from "./nativity.js";
 
 export interface PageEntry {
   page: ColoringPage;
@@ -16,8 +18,10 @@ export interface PageEntry {
 export const PAGES: PageEntry[] = [
   { page: NOAHS_ARK, category: "Old Testament Heroes" },
   { page: DAVID_GOLIATH, category: "Old Testament Heroes" },
+  { page: MOSES_RED_SEA, category: "Old Testament Heroes" },
   { page: JONAH_FISH, category: "Old Testament Heroes" },
   { page: PEACE_DOVE, category: "Old Testament Heroes" },
+  { page: NATIVITY, category: "Jesus' Stories" },
   { page: CREATION, category: "Creation & Animals" },
 ];
 
