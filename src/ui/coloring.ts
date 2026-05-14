@@ -12,6 +12,7 @@ import { el } from "./dom.js";
 import { showCelebration, showConfettiBurst } from "./celebration.js";
 import type { Mode } from "./home.js";
 import { Icons } from "./icons.js";
+import { loadPaint, savePaint, deletePaint } from "../engine/persistence.js";
 
 const FREE_PALETTE = [
   "#E74C3C", "#F39C12", "#F4D03F", "#7DCE82", "#3498DB", "#5B9CFF",
@@ -90,6 +91,14 @@ export function renderColoring(root: HTMLElement, props: ColoringProps): void {
       ),
     );
     return;
+  }
+
+  // Restore prior paint state if any. Resume is one of the highest-impact
+  // retention features per the top-app research — never throw away the kid's
+  // half-finished page.
+  const savedPaint = loadPaint(props.page.id);
+  if (savedPaint) {
+    renderer.importPaintPNG(savedPaint).then(() => renderer.draw()).catch(() => {});
   }
 
   let currentColor = props.mode === "cbn"
@@ -237,6 +246,7 @@ export function renderColoring(root: HTMLElement, props: ColoringProps): void {
     renderer.draw();
     filled.set(regionID, currentColor);
     updateProgress();
+    autosave();
 
     // Tiny confetti burst at the tap point — adds satisfying feedback.
     const wrapRect = canvasWrap.getBoundingClientRect();
@@ -278,6 +288,27 @@ export function renderColoring(root: HTMLElement, props: ColoringProps): void {
     drawing = false;
     canvas.releasePointerCapture(e.pointerId);
     renderer.endStroke();
+    autosave();
+  }
+
+  // Save the paint layer to localStorage. Debounced to avoid blocking the
+  // input thread on rapid stroke ends — savePaint reads back a 2048² texture
+  // which is non-trivial.
+  let saveTimer: number | null = null;
+  function autosave(): void {
+    if (saveTimer != null) window.clearTimeout(saveTimer);
+    saveTimer = window.setTimeout(() => {
+      try {
+        const png = renderer.exportPaintPNG();
+        savePaint(props.page.id, png, {
+          filledRegions: filledCount(),
+          totalRegions,
+          mode: props.mode,
+        });
+      } catch (e) {
+        console.warn("autosave failed", e);
+      }
+    }, 600);
   }
 
   // Wire input depending on mode.
@@ -302,6 +333,7 @@ export function renderColoring(root: HTMLElement, props: ColoringProps): void {
     filled.clear();
     updateProgress();
     rebuildPalette();
+    deletePaint(props.page.id);
   });
   saveBtn.addEventListener("click", () => {
     const dataURL = renderer.exportPNG();

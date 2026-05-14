@@ -2,9 +2,10 @@
 // Bible App for Kids visual feel and Happy Color's category-feed pattern.
 
 import type { ColoringPage } from "../engine/page.js";
-import { pagesByCategory } from "../pages/index.js";
+import { pagesByCategory, findPage } from "../pages/index.js";
 import { el, clear } from "./dom.js";
 import { Icons } from "./icons.js";
+import { readMetaList } from "../engine/persistence.js";
 
 export type Mode = "free" | "cbn";
 
@@ -46,6 +47,41 @@ export function renderHome(root: HTMLElement, props: HomeProps): void {
   const modeRow = el("div", { class: "mode-row" }, [freeCard, cbnCard]);
 
   const categoriesEl = el("div", {});
+
+  // CONTINUE row — pages with saved in-progress state, most recent first.
+  // Per the top-app research, this is the single highest-impact retention
+  // feature: never lose the kid's half-finished art.
+  const inProgress = readMetaList();
+  if (inProgress.length > 0) {
+    const continueStrip = el("div", { class: "category-strip" });
+    for (const meta of inProgress) {
+      const page = findPage(meta.pageId);
+      if (!page) continue;
+      const progress = meta.totalRegions > 0
+        ? meta.filledRegions / meta.totalRegions
+        : 0;
+      const thumbSlot = el("div", { class: "story-thumb" });
+      thumbSlot.appendChild(makeThumbnail(page));
+      if (progress > 0) thumbSlot.appendChild(makeProgressRing(progress));
+      const tile = el("button", {
+        class: "story-tile",
+        dataset: { page: page.id, resume: "1" },
+      }, [
+        thumbSlot,
+        el("div", { class: "story-title" }, page.title),
+      ]);
+      tile.addEventListener("click", () => {
+        // Resume in the same mode the user was using.
+        props.onOpenPage(page, meta.mode);
+      });
+      continueStrip.appendChild(tile);
+    }
+    categoriesEl.appendChild(el("div", { class: "category" }, [
+      el("div", { class: "category-title" }, "Continue"),
+      continueStrip,
+    ]));
+  }
+
   for (const [cat, pages] of pagesByCategory()) {
     const strip = el("div", { class: "category-strip" });
     for (const page of pages) {
@@ -86,6 +122,93 @@ export function renderHome(root: HTMLElement, props: HomeProps): void {
   ]);
 
   root.appendChild(home);
+  maybeShowFirstLaunchHint();
+}
+
+const ONBOARD_KEY = "ce-onboarded";
+
+function maybeShowFirstLaunchHint(): void {
+  try {
+    if (localStorage.getItem(ONBOARD_KEY) === "1") return;
+  } catch { return; }
+
+  const overlay = el("div", {
+    class: "onboard-overlay",
+    style: "position:fixed;inset:0;background:rgba(42,42,46,0.55);z-index:90;" +
+           "display:flex;align-items:center;justify-content:center;padding:24px;",
+  });
+
+  const card = el("div", {
+    style: "background:var(--cream);border-radius:28px;padding:28px 24px;" +
+           "max-width:340px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);" +
+           "border:2px solid var(--line-warm);",
+  }, [
+    el("div", { style: "font-size:60px;margin-bottom:10px" }, "🌈"),
+    el("div", {
+      style: "font-family:Fredoka,sans-serif;font-size:24px;font-weight:700;margin-bottom:8px",
+    }, "Hi! Pick a story to color"),
+    el("div", {
+      style: "font-size:14px;color:var(--ink-2);margin-bottom:18px;line-height:1.4",
+    }, "Tap Color It In to color freely with crayons. Tap By the Numbers to fill each piece by its number."),
+  ]);
+
+  const goBtn = el("button", {
+    style: "background:var(--gold);color:white;font-size:17px;font-weight:700;" +
+           "padding:14px 32px;border-radius:999px;box-shadow:0 4px 12px rgba(232,181,71,0.35);",
+  }, "Let's go!");
+  goBtn.addEventListener("click", () => {
+    try { localStorage.setItem(ONBOARD_KEY, "1"); } catch {}
+    overlay.remove();
+  });
+  card.appendChild(goBtn);
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+}
+
+// SVG circular progress ring overlaid on the bottom-right of a thumbnail.
+// Matches the Happy Color "started but not done" visual pattern.
+function makeProgressRing(progress: number): SVGElement {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 36 36");
+  svg.setAttribute("class", "progress-ring");
+  // Style inline so this component is self-contained.
+  svg.setAttribute("style",
+    "position:absolute;bottom:8px;right:8px;width:36px;height:36px;" +
+    "background:rgba(255,255,255,0.92);border-radius:50%;" +
+    "box-shadow:0 2px 6px rgba(0,0,0,0.18);");
+  const r = 14;
+  const c = 2 * Math.PI * r;
+  const bg = document.createElementNS(ns, "circle");
+  bg.setAttribute("cx", "18");
+  bg.setAttribute("cy", "18");
+  bg.setAttribute("r", String(r));
+  bg.setAttribute("fill", "none");
+  bg.setAttribute("stroke", "#EFE6CC");
+  bg.setAttribute("stroke-width", "4");
+  svg.appendChild(bg);
+  const fg = document.createElementNS(ns, "circle");
+  fg.setAttribute("cx", "18");
+  fg.setAttribute("cy", "18");
+  fg.setAttribute("r", String(r));
+  fg.setAttribute("fill", "none");
+  fg.setAttribute("stroke", "#6FBF73");
+  fg.setAttribute("stroke-width", "4");
+  fg.setAttribute("stroke-linecap", "round");
+  fg.setAttribute("stroke-dasharray", `${c * progress} ${c}`);
+  fg.setAttribute("transform", "rotate(-90 18 18)");
+  svg.appendChild(fg);
+  const text = document.createElementNS(ns, "text");
+  text.setAttribute("x", "18");
+  text.setAttribute("y", "22");
+  text.setAttribute("text-anchor", "middle");
+  text.setAttribute("font-family", "Fredoka, sans-serif");
+  text.setAttribute("font-size", "10");
+  text.setAttribute("font-weight", "700");
+  text.setAttribute("fill", "#2A2A2E");
+  text.textContent = `${Math.round(progress * 100)}%`;
+  svg.appendChild(text);
+  return svg;
 }
 
 function makeThumbnail(page: ColoringPage): HTMLCanvasElement {

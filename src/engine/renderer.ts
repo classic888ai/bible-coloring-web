@@ -415,9 +415,61 @@ export class Renderer {
   // Export the current composite as a PNG dataURL. Renders into a freshly
   // sized framebuffer then reads pixels.
   exportPNG(): string {
-    // For simplicity, draw to the visible canvas at its current size then
-    // read it. (A higher-quality export would render at page.size.)
     this.draw();
     return this.canvas.toDataURL("image/png");
+  }
+
+  /**
+   * Export ONLY the paint texture (no page background, no line art) as a
+   * dataURL. Used for save/resume — we re-render the page chrome from code
+   * each time, but the user's brush strokes need to be persisted.
+   */
+  exportPaintPNG(): string {
+    const gl = this.gl;
+    const size = this.page.size;
+    const px = new Uint8Array(size * size * 4);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.paintFbo);
+    gl.readPixels(0, 0, size, size, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    // Stash to a temp 2D canvas → toDataURL.
+    const tmp = document.createElement("canvas");
+    tmp.width = size;
+    tmp.height = size;
+    const ctx = tmp.getContext("2d")!;
+    const imageData = ctx.createImageData(size, size);
+    // GL reads bottom-up; flip rows.
+    for (let y = 0; y < size; y++) {
+      const srcRow = (size - 1 - y) * size * 4;
+      const dstRow = y * size * 4;
+      for (let x = 0; x < size * 4; x++) {
+        imageData.data[dstRow + x] = px[srcRow + x] ?? 0;
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+    return tmp.toDataURL("image/png");
+  }
+
+  /**
+   * Restore the paint texture from a previously-exported dataURL. Used on
+   * page open to resume an in-progress coloring.
+   */
+  importPaintPNG(dataURL: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const gl = this.gl;
+        // Flip Y on upload because the dataURL was authored top-down, but
+        // our paint FBO expects bottom-up.
+        gl.bindTexture(gl.TEXTURE_2D, this.paintTex);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+        resolve();
+      };
+      img.onerror = () => reject(new Error("paint load failed"));
+      img.src = dataURL;
+    });
   }
 }
